@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	expect "github.com/google/goexpect"
@@ -34,29 +35,23 @@ import (
 	"kubevirt.io/kubevirt/tests/console"
 )
 
-type server string
+type ServerType int
 
 const (
-	TCPServer  = server("tcp")
-	HTTPServer = server("http")
+	TCPServer ServerType = iota
+	HTTPServer
 )
 
-func (s server) composeNetcatServerCommand(port int, extraArgs ...string) string {
-	ncBase := "nc"
-	if len(extraArgs) > 0 {
-		ncBase += " " + strings.Join(extraArgs, " ")
-	}
-	ncBase += fmt.Sprintf(" -l %d", port)
-	var payload string
-	switch s {
+func (t ServerType) shellPayload() string {
+	switch t {
 	case TCPServer:
-		payload = `{ printf '%s\n' 'Hello World!'; sleep 2; }`
+		return `printf 'Hello World!'; sleep 2`
 	case HTTPServer:
-		payload = `{ printf '%b' 'HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World!'; sleep 2; }`
+		return "printf \"HTTP/1.1 200 OK\nContent-Length: 12\n\nHello World!\"; sleep 2"
 	default:
-		panic(fmt.Sprintf("unknown server type: %q", string(s)))
+		Fail(fmt.Sprintf("unknown ServerType: %d", t))
+		return ""
 	}
-	return fmt.Sprintf("while true; do %s | %s; done >/dev/null 2>&1 & sleep 1\n", payload, ncBase)
 }
 
 func StartTCPServer(vmi *v1.VirtualMachineInstance, port int, loginTo console.LoginToFunction) {
@@ -101,6 +96,8 @@ EOL`, inetSuffix, port)
 	Expect(console.RunCommand(vmi, serverCommand, 60*time.Second)).To(Succeed())
 }
 
-func (s server) Start(vmi *v1.VirtualMachineInstance, port int, extraArgs ...string) {
-	Expect(console.RunCommand(vmi, s.composeNetcatServerCommand(port, extraArgs...), 60*time.Second)).To(Succeed())
+func (t ServerType) Start(vmi *v1.VirtualMachineInstance, port int, extraArgs ...string) {
+	nc := fmt.Sprintf("nc %s -klp %d", strings.Join(extraArgs, " "), port)
+	cmd := fmt.Sprintf("%s -e sh -c %q&\n", nc, t.shellPayload())
+	Expect(console.RunCommand(vmi, cmd, 60*time.Second)).To(Succeed())
 }
