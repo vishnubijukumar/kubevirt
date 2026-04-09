@@ -50,7 +50,7 @@ func (s server) composeNetcatServerCommand(port int, extraArgs ...string) string
 	var payload string
 	switch s {
 	case TCPServer:
-		payload = `printf '%s\n' 'Hello World!'`
+		payload = `{ printf '%s\n' 'Hello World!'; sleep 2; }`
 	case HTTPServer:
 		payload = `{ printf '%b' 'HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World!'; sleep 2; }`
 	default:
