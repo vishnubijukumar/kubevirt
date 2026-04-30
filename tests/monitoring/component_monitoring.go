@@ -396,9 +396,9 @@ func checkRESTErrorsBurst(virtClient kubecli.KubevirtClient, roleBindingName, al
 	)
 	Expect(err).ToNot(HaveOccurred())
 
-	vmi := libvmifact.NewGuestless()
+	vmi := libvmifact.NewAlpine()
 
-	By("Trying to create a guestless vmi until the alert exists")
+	By("Trying to create a alpine vmi until the alert exists")
 	Eventually(func(g Gomega) {
 		_, _ = virtClient.VirtualMachineInstance(testsuite.NamespaceTestDefault).Create(
 			context.Background(), vmi, metav1.CreateOptions{},
