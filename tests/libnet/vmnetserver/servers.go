@@ -37,12 +37,26 @@ import (
 type server string
 
 const (
-	TCPServer  = server("\"Hello World!\"&\n")
-	HTTPServer = server("\"HTTP/1.1 200 OK\\nContent-Length: 12\\n\\nHello World!\"&\n")
+	TCPServer  = server("tcp")
+	HTTPServer = server("http")
 )
 
 func (s server) composeNetcatServerCommand(port int, extraArgs ...string) string {
-	return fmt.Sprintf("nc %s -klp %d -e echo -e %s", strings.Join(extraArgs, " "), port, string(s))
+	ncBase := "nc"
+	if len(extraArgs) > 0 {
+		ncBase += " " + strings.Join(extraArgs, " ")
+	}
+	ncBase += fmt.Sprintf(" -l %d", port)
+	var payload string
+	switch s {
+	case TCPServer:
+		payload = `printf '%s\n' 'Hello World!'`
+	case HTTPServer:
+		payload = `{ printf '%b' 'HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World!'; sleep 2; }`
+	default:
+		panic(fmt.Sprintf("unknown server type: %q", string(s)))
+	}
+	return fmt.Sprintf("while true; do %s | %s; done >/dev/null 2>&1 & sleep 1\n", payload, ncBase)
 }
 
 func StartTCPServer(vmi *v1.VirtualMachineInstance, port int, loginTo console.LoginToFunction) {
